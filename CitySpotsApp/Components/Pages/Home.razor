@@ -1,0 +1,252 @@
+﻿@page "/"
+@page "/spots"
+@inject DataService dataService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<div class="d-flex justify-content-end mb-3">
+    <div class="d-flex align-items-center">
+        <label class="me-2 fw-bold">@IdiomaLabel:</label>
+        <select class="form-select form-select-sm w-auto" @onchange="ChangeLanguage">
+            <option value="es">Castellano</option>
+            <option value="eu">Euskera</option>
+        </select>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <input class="form-control" placeholder="@SearchPlaceholderLabel" @bind="searchTerm" @bind:event="oninput" @onkeyup="ApplyFilters" />
+    </div>
+    <div class="col-md-4">
+        <select class="form-select" @bind="selectedCountry" @bind:after="ApplyFilters">
+            <option value="">@AllLabel</option>
+            @foreach (var c in dataService.Data.countries)
+            {
+                <option value="@c.id">@c.name</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select class="form-select" @bind="selectedCategory" @bind:after="ApplyFilters">
+            <option value="">@AllLabel</option>
+            @foreach (var c in dataService.Data.categories)
+            {
+                <option value="@c.id">@c.name</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="mb-3">
+    <button class="btn btn-success" @onclick="GoToCreate">@CreateSpotLabel</button>
+    <button class="btn btn-info" @onclick="GoToMap">@MapLabel</button>
+</div>
+
+@if (filteredSpots == null)
+{
+    <p>@LoadingLabel</p>
+}
+else if (!filteredSpots.Any())
+{
+    <p>@NoResultsLabel</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>@NameLabel</th>
+                <th>@CityLabel</th>
+                <th>@CountryLabel</th>
+                <th>@CategoryLabel</th>
+                <th>@RatingLabel</th>
+                <th>@ActionsLabel</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var spot in filteredSpots)
+            {
+                <tr>
+                    <td><a href="/spots/@spot.id">@spot.name</a></td>
+                    <td>@spot.city</td>
+                    <td>@GetCountryName(spot.countryId)</td>
+                    <td>@GetCategoryName(spot.categoryId)</td>
+                    <td>@spot.rating</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => GoToEdit(spot.id)">@EditLabel</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteSpot(spot.id)">@DeleteLabel</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Spot>? filteredSpots;
+    private string searchTerm = "";
+    private string selectedCountry = "";
+    private string selectedCategory = "";
+
+    private string SelectedLanguage = "es";
+
+    private string IdiomaLabel => SelectedLanguage switch
+    {
+        "es" => "Idioma",
+        "eu" => "Hizkuntza",
+        _ => "Idioma"
+    };
+
+    private string SearchPlaceholderLabel => SelectedLanguage switch
+    {
+        "es" => "Buscar por nombre...",
+        "eu" => "Izenaren arabera bilatu...",
+        _ => "Buscar por nombre..."
+    };
+
+    private string AllLabel => SelectedLanguage switch
+    {
+        "es" => "Todos",
+        "eu" => "Guztiak",
+        _ => "Todos"
+    };
+
+    private string CreateSpotLabel => SelectedLanguage switch
+    {
+        "es" => "Crear Spot",
+        "eu" => "Spot Sortu",
+        _ => "Crear Spot"
+    };
+
+    private string MapLabel => SelectedLanguage switch
+    {
+        "es" => "Mapa",
+        "eu" => "Mapa",
+        _ => "Mapa"
+    };
+
+    private string LoadingLabel => SelectedLanguage switch
+    {
+        "es" => "Cargando...",
+        "eu" => "Kargatzen...",
+        _ => "Cargando..."
+    };
+
+    private string NoResultsLabel => SelectedLanguage switch
+    {
+        "es" => "Sin resultados",
+        "eu" => "Emaitzarik gabe",
+        _ => "Sin resultados"
+    };
+
+    private string NameLabel => SelectedLanguage switch
+    {
+        "es" => "Nombre",
+        "eu" => "Izena",
+        _ => "Nombre"
+    };
+
+    private string CityLabel => SelectedLanguage switch
+    {
+        "es" => "Ciudad",
+        "eu" => "Hiria",
+        _ => "Ciudad"
+    };
+
+    private string CountryLabel => SelectedLanguage switch
+    {
+        "es" => "País",
+        "eu" => "Herrialdea",
+        _ => "País"
+    };
+
+    private string CategoryLabel => SelectedLanguage switch
+    {
+        "es" => "Categoría",
+        "eu" => "Kategoria",
+        _ => "Categoría"
+    };
+
+    private string RatingLabel => SelectedLanguage switch
+    {
+        "es" => "Valoración",
+        "eu" => "Rating",
+        _ => "Valoración"
+    };
+
+    private string ActionsLabel => SelectedLanguage switch
+    {
+        "es" => "Acciones",
+        "eu" => "Ekintzak",
+        _ => "Acciones"
+    };
+
+    private string EditLabel => SelectedLanguage switch
+    {
+        "es" => "Editar",
+        "eu" => "Editatu",
+        _ => "Editar"
+    };
+
+    private string DeleteLabel => SelectedLanguage switch
+    {
+        "es" => "Eliminar",
+        "eu" => "Ezabatu",
+        _ => "Eliminar"
+    };
+
+    private string DeleteConfirmLabel => SelectedLanguage switch
+    {
+        "es" => "¿Estás seguro de que deseas eliminar este spot?",
+        "eu" => "Ziur zaude ezabatu nahi duzula?",
+        _ => "¿Estás seguro de que deseas eliminar este spot?"
+    };
+
+    private void ChangeLanguage(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            SelectedLanguage = e.Value.ToString() ?? "es";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await dataService.InitializeAsync();
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredSpots = dataService.Data.spots.Where(s =>
+            (string.IsNullOrWhiteSpace(searchTerm) || (s.name != null && s.name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
+            (string.IsNullOrWhiteSpace(selectedCountry) || s.countryId.ToString() == selectedCountry) &&
+            (string.IsNullOrWhiteSpace(selectedCategory) || s.categoryId.ToString() == selectedCategory)
+        ).ToList();
+    }
+
+    private string GetCountryName(int id) => dataService.Data.countries.FirstOrDefault(c => c.id == id.ToString())?.name ?? "";
+    private string GetCategoryName(int id) => dataService.Data.categories.FirstOrDefault(c => c.id == id.ToString())?.name ?? "";
+
+    private void GoToCreate() => Navigation.NavigateTo("/spots/create");
+    private void GoToEdit(string? id) => Navigation.NavigateTo($"/spots/{id}/edit");
+    private void GoToMap() => Navigation.NavigateTo("/map");
+
+    private async Task DeleteSpot(string? id)
+    {
+        if (id == null) return;
+
+        bool confirm = await JS.InvokeAsync<bool>("confirm", DeleteConfirmLabel);
+        if (confirm)
+        {
+            var spot = dataService.Data.spots.FirstOrDefault(s => s.id == id);
+            if (spot != null)
+            {
+                dataService.Data.spots.Remove(spot);
+                await dataService.SaveDataAsync();
+                ApplyFilters();
+            }
+        }
+    }
+}

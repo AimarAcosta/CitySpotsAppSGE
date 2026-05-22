@@ -1,0 +1,105 @@
+@page "/spots/{id}"
+@inject DataService dataService
+@inject NavigationManager Navigation
+
+<div class="d-flex justify-content-end mb-3">
+    <div class="d-flex align-items-center">
+        <label class="me-2 fw-bold">@IdiomaLabel:</label>
+        <select class="form-select form-select-sm w-auto" @onchange="ChangeLanguage">
+            <option value="es">Castellano</option>
+            <option value="eu">Euskera</option>
+        </select>
+    </div>
+</div>
+
+<h3 class="mb-4 text-center">@TitleLabel</h3>
+
+@if (spot == null)
+{
+    <div class="alert alert-warning">@LoadingLabel</div>
+}
+else
+{
+    <div class="card shadow-sm mx-auto" style="max-width: 600px;">
+        <div class="card-body">
+            <h4 class="card-title text-primary">@spot.name</h4>
+            <h6 class="card-subtitle mb-3 text-muted">@spot.city, @GetCountryName(spot.countryId)</h6>
+
+            <ul class="list-group list-group-flush mb-4">
+                <li class="list-group-item"><strong>@CategoryLabel:</strong> @GetCategoryName(spot.categoryId)</li>
+                <li class="list-group-item"><strong>@RatingLabel:</strong> @spot.rating / 5</li>
+                <li class="list-group-item"><strong>@LatLabel:</strong> @spot.lat</li>
+                <li class="list-group-item"><strong>@LngLabel:</strong> @spot.lng</li>
+            </ul>
+
+            <div class="d-flex justify-content-between">
+                <button class="btn btn-secondary" @onclick="GoBack">@BackLabel</button>
+                <button class="btn btn-success" @onclick="OpenMap">@OpenMapLabel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? id { get; set; }
+
+    private Spot? spot;
+    private string SelectedLanguage = "es";
+
+    private string IdiomaLabel => SelectedLanguage switch { "eu" => "Hizkuntza", _ => "Idioma" };
+    private string TitleLabel => SelectedLanguage switch { "eu" => "Xehetasunak", _ => "Detalles" };
+    private string LoadingLabel => SelectedLanguage switch { "eu" => "Kargatzen edo ez da aurkitu...", _ => "Cargando o no encontrado..." };
+    private string CategoryLabel => SelectedLanguage switch { "eu" => "Kategoria", _ => "Categoría" };
+    private string RatingLabel => SelectedLanguage switch { "eu" => "Rating", _ => "Valoración" };
+    private string LatLabel => SelectedLanguage switch { "eu" => "Latitudea", _ => "Latitud" };
+    private string LngLabel => SelectedLanguage switch { "eu" => "Longitudea", _ => "Longitud" };
+    private string BackLabel => SelectedLanguage switch { "eu" => "Itzuli Zerrendara", _ => "Volver a la Lista" };
+    private string OpenMapLabel => SelectedLanguage switch { "eu" => "Ireki Mapan", _ => "Abrir en Mapa" };
+
+    private void ChangeLanguage(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            SelectedLanguage = e.Value.ToString() ?? "es";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (dataService.Data.countries.Count == 0)
+        {
+            await dataService.InitializeAsync();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        spot = dataService.Data.spots.FirstOrDefault(s => s.id == id);
+    }
+
+    private string GetCountryName(int cid) => dataService.Data.countries.FirstOrDefault(c => c.id == cid.ToString())?.name ?? "";
+
+    private string GetCategoryName(int cid) => dataService.Data.categories.FirstOrDefault(c => c.id == cid.ToString())?.name ?? "";
+
+    private async Task OpenMap()
+    {
+        if (spot != null)
+        {
+            string url = $"https://www.google.com/maps/search/?api=1&query={spot.lat},{spot.lng}";
+            try
+            {
+                await Launcher.Default.OpenAsync(url);
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/spots");
+    }
+}
